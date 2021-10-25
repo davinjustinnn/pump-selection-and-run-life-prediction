@@ -1,51 +1,60 @@
+#Install Required Packages
+##pip install pandas
+##pip install streamlit
+##pip install plotly
+
+#Import Required Packages
 import pickle
 import pandas as pd
+import streamlit as st
+import plotly.graph_objects as go
 
+#Import Functions from formula.py and util.py
 from formula import *
 from util import *
 
-import streamlit as st
-
-import plotly.graph_objects as go
-
-#st.title("Pump Selection and Run Life Prediction")
+# Title Style
 new_title = '<p style="font-family:Segoe UI ; color:Black; font-size: 36px;"><b>Pump Selection and Run Life Prediction</b></p>'
 st.markdown(new_title, unsafe_allow_html=True)
 
+# Sidebar Menu 
 st.sidebar.subheader("Well Information")
-platform                = st.sidebar.selectbox("Platform:  ",platforms_arr)
-well                    = st.sidebar.selectbox("Well:  ",wells_arr)
-vendor                  = st.sidebar.selectbox("Vendor :  ",vendors_arr)
-problems                = st.sidebar.selectbox("Problems:  ",problems_arr)
+platform                = st.sidebar.selectbox("Platform  ",platforms_arr)
+well                    = st.sidebar.selectbox("Well  ",wells_arr)
+vendor                  = st.sidebar.selectbox("Vendor   ",vendors_arr)
+problems                = st.sidebar.selectbox("Problems  ",problems_arr)
 
 st.sidebar.subheader("Well Performance")
-liquid_rate             = st.sidebar.number_input('Liquid Rate',value=1000)
-water_cut               = st.sidebar.number_input('Water Cut',value=91)
-tubing_head_pressure    = st.sidebar.number_input('Tubing Head Pressure',value=700)
-casing_head_pressure    = st.sidebar.number_input('Casing Head Pressure',value=170)
-sbhp                    = st.sidebar.number_input('SBHP',value=1253)
-fbhp                    = st.sidebar.number_input('FBHP',value=420)
+liquid_rate             = st.sidebar.number_input('Liquid Rate (BFPD)',value=1000)
+water_cut               = st.sidebar.number_input('Water Cut (%)',value=91)
+tubing_head_pressure    = st.sidebar.number_input('Tubing Head Pressure (psi)',value=700)
+casing_head_pressure    = st.sidebar.number_input('Casing Head Pressure (psi)',value=170)
+sbhp                    = st.sidebar.number_input('SBHP (psi)',value=1253)
+fbhp                    = st.sidebar.number_input('FBHP (psi)',value=420)
+
 st.sidebar.subheader("Completion Data")
-casing_id               = st.sidebar.number_input('Casing ID',value=6.3)
-pump_setting_depth      = st.sidebar.number_input('Pump Setting Depth',value=6962)
-tubing_od               = st.sidebar.number_input('Tubing OD',value=2.875)
-tubing_id               = st.sidebar.number_input('Tubing ID',value=2.441)
-tlpsd                   = st.sidebar.number_input('Tubing Length to PSD',value=6901.4)
-perforation_depth       = st.sidebar.number_input('Perforation Depth',value=6994)
-gas_rate                = st.sidebar.number_input('Gas Rate',value=481)
+casing_id               = st.sidebar.number_input('Casing ID (in)',value=6.3)
+pump_setting_depth      = st.sidebar.number_input('Pump Setting Depth (ft)',value=6962)
+tubing_od               = st.sidebar.number_input('Tubing OD (in)',value=2.875)
+tubing_id               = st.sidebar.number_input('Tubing ID (in)',value=2.441)
+tlpsd                   = st.sidebar.number_input('Tubing Length to PSD (ft, MD)',value=6901.4)
+perforation_depth       = st.sidebar.number_input('Perforation Depth (ft, TVD)',value=6994)
+gas_rate                = st.sidebar.number_input('Gas Rate (MSCFD)',value=481)
+
 st.sidebar.subheader("Fluid Properties")
 sg_oil                  = st.sidebar.number_input('SG Oil',value=0.892)
 sg_gas                  = st.sidebar.number_input('SG Gas',value=0.65)
 sg_water                = st.sidebar.number_input('SG Water',value=1.05)
-formation_volume_factor_water = st.sidebar.number_input('Formation Volume Factor Water',value=1)
-temperature_suction     = st.sidebar.number_input('Temperature Suction',value=244)
-interfacial_tension     = st.sidebar.number_input('Interfacial Tension',value=0.04)
-acceleration_of_gravity = st.sidebar.number_input('Acceleration of Gravity',value=32)
+formation_volume_factor_water = st.sidebar.number_input('Formation Volume Factor Water (bbl/STB)',value=1)
+temperature_suction     = st.sidebar.number_input('Temperature Suction (F)',value=244)
+interfacial_tension     = st.sidebar.number_input('Interfacial Tension (lbf/s^2)',value=0.04)
+acceleration_of_gravity = st.sidebar.number_input('Acceleration of Gravity (ft/s^2)',value=32)
+
 st.sidebar.subheader("Further Details")
 ipr_equation            = st.sidebar.selectbox('IPR Equation',['vogel','fetkovich','wiggins'])
 desired_q               = st.sidebar.number_input('Desired Q',value=500)
 
-
+## Calculation for Each Parameters
 # Well Performance Data
 p_res = p_reservoir(perforation_depth, pump_setting_depth, water_cut, sg_oil, sg_water, sbhp)
 p_wf = pwf(perforation_depth, pump_setting_depth, water_cut, sg_oil, sg_water, fbhp)
@@ -86,65 +95,39 @@ elif ipr_equation == 'wiggins':
 fbhp_dq = fbhpipr(desired_q, pres_arr, q_arr)
 
 # Turpin Function
-sg_liq = sg_liquid(water_cut, sg_oil, sg_water)
-#st.write("sg_liq", sg_liq)
-liquid_grad = liquid_gradient(sg_liq)
-#st.write("liquid_grad", liquid_grad)
-intake_pressure_turpin = pump_intake(p_wf, perforation_depth, pump_setting_depth, liquid_grad)
-#st.write("intake_pressure_turpin", intake_pressure_turpin)
-api_turpin = APIturpin(sg_oil)
-#st.write("api_turpin", api_turpin)
-yturpin = y_turpin(temperature_suction, api_turpin)
-#st.write("yturpin", yturpin)
-rsturpin = Rs_turpin(sg_gas, intake_pressure_turpin, yturpin)
-#st.write("rsturpin", rsturpin)
-oilrateturpin = OilRate_Turpin(liquid_rate, water_cut)
-#st.write("oilrateturpin", oilrateturpin)
-ppcturpin = Ppc_turpin(sg_gas)
-#st.write("ppcturpin", ppcturpin)
-tpcturpin = Tpc_turpin(sg_gas)
-#st.write("tpcturpin", tpcturpin)
-pprturpin = Ppr_turpin(intake_pressure_turpin, ppcturpin)
-#st.write("pprturpin", pprturpin)
-tprturpin = Tpr_turpin(t_rankine, tpcturpin)
-#st.write("tprturpin", tprturpin)
-zturpin = Z_turpin(pprturpin, tprturpin)
-#st.write("zturpin", zturpin)
-bgturpin = Bg_Turpin(t_rankine, intake_pressure_turpin, zturpin)
-#st.write("bgturpin", bgturpin)
-insiturate = InsituGasRate(gor, rsturpin, oilrateturpin, bgturpin)
-#st.write("insiturate", insiturate)
-fturpin = F_turpin(sg_oil, sg_gas, temperature_suction, rsturpin)
-#st.write("fturpin", fturpin)
-boturpin = Bo_turpin(fturpin)
-#st.write("boturpin", boturpin)
-gasdensity = gas_density(sg_gas, bgturpin)
-#st.write("gasdensity", gasdensity)
-liqdensity = liq_density(wor, sg_oil, sg_water, formation_volume_factor_water, boturpin)
-#st.write("liqdensity", liqdensity)
-Aturpin = A_turpin(casing_id, tubing_od)
-#st.write("Aturpin", Aturpin)
-Vbturpin = Vb_turpin(interfacial_tension, acceleration_of_gravity, gasdensity, liqdensity)
-#st.write("Vbturpin", Vbturpin)
-Vslturpin = Vsl_turpin(wor, formation_volume_factor_water, desired_q, boturpin, Aturpin)
-#st.write("Vslturpin", Vslturpin)
-natural_eff = naturalgas_eff(Vbturpin, Vslturpin)
-#st.write("natural_eff", natural_eff)
-ingestedgas = ingested_gas(insiturate, natural_eff)
-#st.write("ingestedgas", ingestedgas)
-qpumpturpin = Qpump_turpin(rsturpin, ingestedgas)
-#st.write("qpumpturpin", qpumpturpin)
-qlpumpturpin = qlpump_turpin(wor, formation_volume_factor_water, oilrateturpin, boturpin)
-#st.write("qlpumpturpin", qlpumpturpin)
-totalpumpfluid = totalfluid_pump (ingestedgas, qlpumpturpin)
-#st.write("totalpumpfluid", totalpumpfluid)
-turpin_func = turpin_parameter(intake_pressure_turpin, ingestedgas, qlpumpturpin)
+sg_liq                  = sg_liquid(water_cut, sg_oil, sg_water)
+liquid_grad             = liquid_gradient(sg_liq)
+intake_pressure_turpin  = pump_intake(p_wf, perforation_depth, pump_setting_depth, liquid_grad)
+api_turpin              = APIturpin(sg_oil)
+yturpin                 = y_turpin(temperature_suction, api_turpin)
+rsturpin                = Rs_turpin(sg_gas, intake_pressure_turpin, yturpin)
+oilrateturpin           = OilRate_Turpin(liquid_rate, water_cut)
+ppcturpin               = Ppc_turpin(sg_gas)
+tpcturpin               = Tpc_turpin(sg_gas)
+pprturpin               = Ppr_turpin(intake_pressure_turpin, ppcturpin)
+tprturpin               = Tpr_turpin(t_rankine, tpcturpin)
+zturpin                 = Z_turpin(pprturpin, tprturpin)
+bgturpin                = Bg_Turpin(t_rankine, intake_pressure_turpin, zturpin)
+insiturate              = InsituGasRate(gor, rsturpin, oilrateturpin, bgturpin)
+fturpin                 = F_turpin(sg_oil, sg_gas, temperature_suction, rsturpin)
+boturpin                = Bo_turpin(fturpin)
+gasdensity              = gas_density(sg_gas, bgturpin)
+liqdensity              = liq_density(wor, sg_oil, sg_water, formation_volume_factor_water, boturpin)
+Aturpin                 = A_turpin(casing_id, tubing_od)
+Vbturpin                = Vb_turpin(interfacial_tension, acceleration_of_gravity, gasdensity, liqdensity)
+Vslturpin               = Vsl_turpin(wor, formation_volume_factor_water, desired_q, boturpin, Aturpin)
+natural_eff             = naturalgas_eff(Vbturpin, Vslturpin)
+ingestedgas             = ingested_gas(insiturate, natural_eff)
+qpumpturpin             = Qpump_turpin(rsturpin, ingestedgas)
+qlpumpturpin            = qlpump_turpin(wor, formation_volume_factor_water, oilrateturpin, boturpin)
+totalpumpfluid          = totalfluid_pump (ingestedgas, qlpumpturpin)
+turpin_func             = turpin_parameter(intake_pressure_turpin, ingestedgas, qlpumpturpin)
 
 if turpin_func > 1:
     turpin_det = 'Need Gas Separator'
 else:
     turpin_det = 'No Need Gas Separator'
-#st.write("turpin_func", turpin_func)
+
 
 # Get pumps within desired q
 pumps_arr = get_pumps(desired_q)
@@ -201,7 +184,7 @@ for i in range(len(data)):
         }
     preds.append(temp)
 
-
+#Parameter Simplification
 p_reservoir = p_res
 pwf = p_wf
 gor = gor
